@@ -22,7 +22,6 @@ static tflite::MicroInterpreter *interpreter = nullptr;
 static TfLiteTensor *input_tensor = nullptr;
 static TfLiteTensor *output_tensor = nullptr;
 
-
 // Last inference results
 static int last_predicted_class = -1;
 static float last_prediction_score = 0.0f;
@@ -83,17 +82,21 @@ int model_init(void)
     }
     am_util_stdio_printf("Model loaded successfully (schema version %d)\r\n", model->version());
 
-    // Build mutable resolver with required operations for this model
-    static tflite::MicroMutableOpResolver<9> resolver(error_reporter);
-    resolver.AddConv2D();
-    resolver.AddDepthwiseConv2D();
-    resolver.AddDequantize();
-    resolver.AddFullyConnected();
-    resolver.AddMul();
-    resolver.AddPad();
+    static tflite::MicroMutableOpResolver<14> resolver(error_reporter);
     resolver.AddTranspose();
+    resolver.AddConv2D();
+    resolver.AddPad();
+    resolver.AddDepthwiseConv2D();
+    resolver.AddAveragePool2D();
+    resolver.AddReshape();
+    resolver.AddFullyConnected();
+    resolver.AddAbs();
+    resolver.AddMul();
     resolver.AddSum();
-    resolver.AddQuantize();
+    resolver.AddSqrt();
+    resolver.AddMaximum();
+    resolver.AddDiv();
+    resolver.AddConcatenation();
 
     // Build interpreter
     static tflite::MicroInterpreter static_interpreter(
@@ -140,18 +143,20 @@ int model_run_inference(const uint8_t *image_data)
         int8_t *input_data = input_tensor->data.int8;
         float input_scale = input_tensor->params.scale;
         int input_zero_point = input_tensor->params.zero_point;
-        
+
         // Quantize uint8 [0-255] to int8 using model's quantization parameters
         for (int i = 0; i < kInputSize; i++)
         {
             float real_value = static_cast<float>(image_data[i]);
             float quantized_float = (real_value / input_scale) + input_zero_point;
             int8_t quantized_value = static_cast<int8_t>(std::round(quantized_float));
-            
+
             // Clamp to int8 range
-            if (quantized_value > 127) quantized_value = 127;
-            if (quantized_value < -128) quantized_value = -128;
-            
+            if (quantized_value > 127)
+                quantized_value = 127;
+            if (quantized_value < -128)
+                quantized_value = -128;
+
             input_data[i] = quantized_value;
         }
     }
@@ -221,14 +226,14 @@ void model_print_results(void)
     // Print predicted class
     am_util_stdio_printf("\r\nPredicted class: %s (score: %.4f)\r\n",
                          kCategoryLabels[last_predicted_class], last_prediction_score);
-    
-    // Verify prediction with expected label
-    #ifdef CIFAR10_TEST_IMAGE_LABEL
+
+// Verify prediction with expected label
+#ifdef CIFAR10_TEST_IMAGE_LABEL
     int expected_label = CIFAR10_TEST_IMAGE_LABEL;
     am_util_stdio_printf("\r\nVERIFICATION:\r\n");
     am_util_stdio_printf("  Expected: %s, Predicted: %s\r\n",
                          kCategoryLabels[expected_label], kCategoryLabels[last_predicted_class]);
     am_util_stdio_printf("  Result: %s\r\n",
                          (last_predicted_class == expected_label) ? "CORRECT" : "INCORRECT");
-    #endif
+#endif
 }

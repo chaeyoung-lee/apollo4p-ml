@@ -54,6 +54,12 @@ Ensure the file has:
 - `g_model_data` (array)
 - `g_model_data_len` (length)
 
+```C++
+#include "model_data.h"
+alignas(16) const unsigned char g_model_data[] = { ... };
+const unsigned int g_model_data_len = ...;
+```
+
 ### 2. Update Settings
 
 Edit `src/model/model_settings.h`:
