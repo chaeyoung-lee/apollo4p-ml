@@ -71,6 +71,11 @@ Edit `src/model/model_settings.h`:
 
 Edit `src/model/model_inference.cc` in `model_init()` to add required TensorFlow Lite operations for your model.
 
+To see what operations the model uses, run
+```bash
+python python_scripts/tflite_operators.py <tflite_path>
+```
+
 ## API
 
 ```c
