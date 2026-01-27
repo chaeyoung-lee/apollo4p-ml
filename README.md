@@ -1,6 +1,9 @@
-# CIFAR-10 Inference on Apollo 4 Plus
+# ML Inference on Apollo 4 Plus
 
-A CIFAR-10 image classification inference pipeline for the Ambiq Apollo 4 Plus microcontroller using TensorFlow Lite Micro.
+An image classification inference pipeline for the Ambiq Apollo 4 Plus microcontroller using TensorFlow Lite Micro.
+
+* Hardware: Apollo 4 Plus EVB (AMAP4PEVB), USB-C cable for J-link
+* Compiling: SEGGER Jlink, ARM GCC
 
 ## Quick Start
 
