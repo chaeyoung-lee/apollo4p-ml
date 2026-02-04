@@ -26,6 +26,40 @@ static TfLiteTensor *output_tensor = nullptr;
 static int last_predicted_class = -1;
 static float last_prediction_score = 0.0f;
 
+// ImageNet normalization constants (used for CIFAR-10 with pretrained models)
+static const float IMAGENET_MEAN[3] = {0.485f, 0.456f, 0.406f};
+static const float IMAGENET_STD[3] = {0.229f, 0.224f, 0.225f};
+
+// Helper function to apply ImageNet normalization to image data
+// image_data: HWC format (height, width, channels) - RGB uint8 [0-255]
+// input_data: Output tensor data (format depends on tensor shape)
+// height, width: Image dimensions (32x32 for CIFAR-10)
+static void apply_imagenet_normalization(
+    const uint8_t *image_data,
+    float *input_data,
+    int height,
+    int width)
+{
+    // NCHW format: [C, H, W]
+    // For each channel
+    for (int c = 0; c < 3; c++)
+    {
+        // For each pixel in this channel
+        for (int h = 0; h < height; h++)
+        {
+            for (int w = 0; w < width; w++)
+            {
+                // Get pixel value from HWC format: image_data[h * width * 3 + w * 3 + c]
+                float pixel = static_cast<float>(image_data[h * width * 3 + w * 3 + c]);
+                // Apply ImageNet normalization: (pixel/255.0 - mean) / std
+                float normalized = (pixel / 255.0f - IMAGENET_MEAN[c]) / IMAGENET_STD[c];
+                // Store in NCHW format: input_data[c * height * width + h * width + w]
+                input_data[c * height * width + h * width + w] = normalized;
+            }
+        }
+    }
+}
+
 // Helper function to get output value as float
 static float get_output_value(int index, float scale, int zero_point)
 {
@@ -48,9 +82,12 @@ static int find_predicted_class(float *max_prob_out)
     float scale = (output_tensor->type == kTfLiteInt8) ? output_tensor->params.scale : 0.0f;
     int zero_point = (output_tensor->type == kTfLiteInt8) ? output_tensor->params.zero_point : 0;
 
+    // Get logits start index (skip embeddings if present)
+    int logits_start = output_tensor->dims->data[1] - kOutputSize;
+
     for (int i = 0; i < kOutputSize; i++)
     {
-        float prob = get_output_value(i, scale, zero_point);
+        float prob = get_output_value(logits_start + i, scale, zero_point);
         if (prob > max_prob)
         {
             max_prob = prob;
@@ -82,6 +119,8 @@ int model_init(void)
     }
     am_util_stdio_printf("Model loaded successfully (schema version %d)\r\n", model->version());
 
+    // Run python_scripts/tflite_operators.py to get the operators in the model
+    // If operators are missing, interpreter will fail to initialize
     static tflite::MicroMutableOpResolver<14> resolver(error_reporter);
     resolver.AddTranspose();
     resolver.AddConv2D();
@@ -123,6 +162,48 @@ int model_init(void)
     input_tensor = interpreter->input(0);
     output_tensor = interpreter->output(0);
 
+    // Print input tensor info for debugging
+    am_util_stdio_printf("Input tensor info:\r\n");
+    am_util_stdio_printf("  Type: %d\r\n", input_tensor->type);
+    am_util_stdio_printf("  Dimensions: %d\r\n", input_tensor->dims->size);
+    if (input_tensor->dims->size >= 4)
+    {
+        am_util_stdio_printf("  Shape: [%d, %d, %d, %d]\r\n",
+                             input_tensor->dims->data[0],
+                             input_tensor->dims->data[1],
+                             input_tensor->dims->data[2],
+                             input_tensor->dims->data[3]);
+    }
+
+    // Print output tensor info for debugging
+    am_util_stdio_printf("Output tensor info:\r\n");
+    am_util_stdio_printf("  Type: %d\r\n", output_tensor->type);
+    am_util_stdio_printf("  Dimensions: %d\r\n", output_tensor->dims->size);
+    if (output_tensor->dims->size >= 1)
+    {
+        am_util_stdio_printf("  Shape: [");
+        for (int i = 0; i < output_tensor->dims->size; i++)
+        {
+            am_util_stdio_printf("%d", output_tensor->dims->data[i]);
+            if (i < output_tensor->dims->size - 1)
+                am_util_stdio_printf(", ");
+        }
+        am_util_stdio_printf("]\r\n");
+
+        // Calculate output size
+        int output_size = 1;
+        for (int i = 0; i < output_tensor->dims->size; i++)
+        {
+            output_size *= output_tensor->dims->data[i];
+        }
+        am_util_stdio_printf("  Total size: %d\r\n", output_size);
+
+        // Determine logits start
+        int logits_start = get_logits_start_index();
+        am_util_stdio_printf("  Logits start index: %d\r\n", logits_start);
+        am_util_stdio_printf("  Num classes (kOutputSize): %d\r\n", kOutputSize);
+    }
+
     size_t arena_used = interpreter->arena_used_bytes();
     am_util_stdio_printf("Model initialized. Arena used: %d / %d bytes\r\n",
                          arena_used, kTensorArenaSize);
@@ -137,27 +218,41 @@ int model_run_inference(const uint8_t *image_data)
         return -1;
     }
 
-    // Copy input to input tensor with proper quantization
+    int height = input_tensor->dims->data[2];
+    int width = input_tensor->dims->data[3];
+
+    // Copy input to input tensor with proper quantization and normalization
     if (input_tensor->type == kTfLiteInt8)
     {
         int8_t *input_data = input_tensor->data.int8;
         float input_scale = input_tensor->params.scale;
         int input_zero_point = input_tensor->params.zero_point;
 
-        // Quantize uint8 [0-255] to int8 using model's quantization parameters
-        for (int i = 0; i < kInputSize; i++)
+        // Process each pixel: normalize then quantize
+        for (int h = 0; h < height; h++)
         {
-            float real_value = static_cast<float>(image_data[i]);
-            float quantized_float = (real_value / input_scale) + input_zero_point;
-            int8_t quantized_value = static_cast<int8_t>(std::round(quantized_float));
+            for (int w = 0; w < width; w++)
+            {
+                for (int c = 0; c < 3; c++)
+                {
+                    // Get pixel value from HWC format
+                    float pixel = static_cast<float>(image_data[h * width * 3 + w * 3 + c]);
+                    // Apply ImageNet normalization
+                    float normalized = (pixel / 255.0f - IMAGENET_MEAN[c]) / IMAGENET_STD[c];
 
-            // Clamp to int8 range
-            if (quantized_value > 127)
-                quantized_value = 127;
-            if (quantized_value < -128)
-                quantized_value = -128;
+                    // Quantize normalized value to int8
+                    float quantized_float = (normalized / input_scale) + input_zero_point;
+                    int8_t quantized_value = static_cast<int8_t>(std::round(quantized_float));
 
-            input_data[i] = quantized_value;
+                    // Clamp to int8 range
+                    if (quantized_value > 127)
+                        quantized_value = 127;
+                    if (quantized_value < -128)
+                        quantized_value = -128;
+
+                    input_data[c * height * width + h * width + w] = quantized_value;
+                }
+            }
         }
     }
     else if (input_tensor->type == kTfLiteUInt8)
@@ -171,10 +266,14 @@ int model_run_inference(const uint8_t *image_data)
     else if (input_tensor->type == kTfLiteFloat32)
     {
         float *input_data = input_tensor->data.f;
-        // Normalize to [0, 1]
-        for (int i = 0; i < kInputSize; i++)
+        // Apply ImageNet normalization (handles format internally)
+        apply_imagenet_normalization(image_data, input_data, height, width);
+
+        // Debug: Print a few sample input values
+        am_util_stdio_printf("Debug: Sample normalized input values (first 9):\r\n");
+        for (int i = 0; i < 9 && i < height * width * 3; i++)
         {
-            input_data[i] = static_cast<float>(image_data[i]) / 255.0f;
+            am_util_stdio_printf("  input[%d] = %.6f\r\n", i, input_data[i]);
         }
     }
 
@@ -215,11 +314,14 @@ void model_print_results(void)
     float scale = (output_tensor->type == kTfLiteInt8) ? output_tensor->params.scale : 0.0f;
     int zero_point = (output_tensor->type == kTfLiteInt8) ? output_tensor->params.zero_point : 0;
 
+    // Get logits start index; (embedding, logits) -> logits
+    int logits_start = output_tensor->dims->data[1] - kOutputSize;
+
     // Print all class logits
     am_util_stdio_printf("Class logits:\r\n");
     for (int i = 0; i < kOutputSize; i++)
     {
-        float prob = get_output_value(i, scale, zero_point);
+        float prob = get_output_value(logits_start + i, scale, zero_point);
         am_util_stdio_printf("  %s: %.4f\r\n", kCategoryLabels[i], prob);
     }
 
