@@ -76,9 +76,13 @@ To see what operations the model uses, run
 python python_scripts/tflite_operators.py <tflite_path>
 ```
 
-## SD Card Interface
+## Peripherals
 
-First, flash the micro SD card on your laptop to exFAT system. On Mac, you can use Disk Utility.
+### SD Card
+
+We use FatFS for SD card access. Format the micro SD card as exFAT on your laptop (on Mac, use Disk Utility) so the board can read images or data from it.
+
+The code uses SPI to interface with SD card. You can get any breakout board that uses SPI, but I use [this]().
 
 ## API
 
