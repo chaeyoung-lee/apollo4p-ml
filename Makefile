@@ -34,6 +34,8 @@ sources += $(wildcard src/model/*.c)
 sources += $(wildcard src/model/*.cc)
 sources += $(wildcard src/ivf/*.cc)
 sources += $(wildcard src/util/*.c)
+sources += $(wildcard src/utils/*.c)
+sources += $(wildcard src/utils/*.cc)
 sources += $(wildcard src/sd_card/*.c)
 sources += $(wildcard src/peripherals/*.c)
 # FatFs (ff16)
@@ -62,6 +64,7 @@ endif
 # Local includes
 LOCAL_INCLUDES = src
 LOCAL_INCLUDES += src/util
+LOCAL_INCLUDES += src/utils
 LOCAL_INCLUDES += src/model
 LOCAL_INCLUDES += src/ivf
 LOCAL_INCLUDES += src/sd_card

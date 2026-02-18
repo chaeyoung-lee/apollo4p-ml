@@ -82,7 +82,7 @@ python python_scripts/tflite_operators.py <tflite_path>
 
 We use FatFS for SD card access. Format the micro SD card as exFAT on your laptop (on Mac, use Disk Utility) so the board can read images or data from it.
 
-The code uses SPI to interface with SD card. You can get any breakout board that uses SPI, but I use [this]().
+The code uses SPI to interface with SD card. You can get any breakout board that uses SPI, and I use [this](https://www.adafruit.com/product/254).
 
 ## API
 
