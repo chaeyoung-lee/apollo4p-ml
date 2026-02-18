@@ -5,7 +5,9 @@ include make/jlink.mk
 
 # Simple configuration
 # Set MLDEBUG=1 to enable detailed error messages
+# Set PROFILING=1 (or make CFLAGS+=-DPROFILING) to disable per-query prints and report IVF/TFLite cycle counts
 MLDEBUG ?= 1
+PROFILING ?= 0
 ENERGY_MODE := 0
 
 DEFINES += EE_CFG_ENERGY_MODE=$(ENERGY_MODE)
@@ -14,6 +16,9 @@ ifeq ($(MLDEBUG),1)
 DEFINES += TF_LITE_STRIP_ERROR_STRINGS=0
 else
 DEFINES += TF_LITE_STRIP_ERROR_STRINGS=1
+endif
+ifeq ($(PROFILING),1)
+DEFINES += PROFILING
 endif
 
 # Application name
@@ -25,11 +30,17 @@ sources := $(wildcard src/*.c)
 sources += $(wildcard src/*.cc)
 sources += $(wildcard src/*.cpp)
 sources += $(wildcard src/*.s)
-sources += $(wildcard src/am_utils/*.c)
 sources += $(wildcard src/model/*.c)
 sources += $(wildcard src/model/*.cc)
+sources += $(wildcard src/ivf/*.cc)
+sources += $(wildcard src/util/*.c)
+sources += $(wildcard src/sd_card/*.c)
+sources += $(wildcard src/peripherals/*.c)
+# FatFs (ff16)
+sources += ff16/source/ff.c ff16/source/diskio.c ff16/source/ffsystem.c ff16/source/ffunicode.c
 
 VPATH += $(dir $(sources))
+VPATH += ff16/source
 
 targets  := $(BINDIR)/$(local_app_name).axf
 targets  += $(BINDIR)/$(local_app_name).bin
@@ -51,8 +62,11 @@ endif
 # Local includes
 LOCAL_INCLUDES = src
 LOCAL_INCLUDES += src/util
-LOCAL_INCLUDES += src/am_utils
 LOCAL_INCLUDES += src/model
+LOCAL_INCLUDES += src/ivf
+LOCAL_INCLUDES += src/sd_card
+LOCAL_INCLUDES += src/peripherals
+LOCAL_INCLUDES += ff16/source
 
 CFLAGS     += $(addprefix -D,$(DEFINES))
 CFLAGS     += $(addprefix -I includes/,$(INCLUDES))

@@ -38,7 +38,7 @@ src/
 │   ├── model_data.h/cc       # Model weights
 │   ├── model_settings.h/cc   # Model configuration
 │   └── cifar10_test_image.h  # Default test image
-├── am_utils/                  # UART utilities
+├── peripherals/               # UART, SPI, SD card, etc.
 └── util/                     # Helper functions
 ```
 
@@ -75,6 +75,10 @@ To see what operations the model uses, run
 ```bash
 python python_scripts/tflite_operators.py <tflite_path>
 ```
+
+## SD Card Interface
+
+First, flash the micro SD card on your laptop to exFAT system. On Mac, you can use Disk Utility.
 
 ## API
 

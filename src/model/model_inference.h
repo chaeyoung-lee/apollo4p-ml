@@ -3,24 +3,23 @@
 
 #include <stdint.h>
 
-// Initialize the model and allocate resources
-// Returns 0 on success, non-zero on failure
+// Initialize the model and allocate resources. Returns 0 on success, non-zero on failure.
 int model_init(void);
 
-// Run inference on the provided image data
-// image_data: pointer to uint8_t array of size kInputSize (32x32x3 = 3072 bytes)
-// Returns 0 on success, non-zero on failure
-int model_run_inference(const uint8_t *image_data);
+// --- Embedding API (for IVF) ---
 
-// Get the predicted class index from the last inference
-// Returns class index (0-9) or -1 if no inference has been run
-int model_get_predicted_class(void);
+// Copy image into model input buffer. Call before model_invoke_for_embedding().
+void model_preprocess_for_embedding(const uint8_t *image_data);
 
-// Get the prediction score for the predicted class
-// Returns the logit score
-float model_get_prediction_score(void);
+// Run TFLite forward pass. Call after model_preprocess_for_embedding(). Returns 0 on success.
+int model_invoke_for_embedding(void);
 
-// Print all class logits from the last inference
-void model_print_results(void);
+// Copy first 'dim' floats from model output (embedding) into out. Call after model_invoke_for_embedding().
+void model_get_embedding(float *out, int dim);
+
+// --- Class prediction (for testing) ---
+
+// Run preprocess + invoke and return predicted class index (0..kCategoryCount-1), or -1 on failure.
+int model_predict_class(const uint8_t *image_data);
 
 #endif // MODEL_INFERENCE_H_
