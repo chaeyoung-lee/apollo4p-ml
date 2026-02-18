@@ -80,6 +80,7 @@ extern void am_uart_isr(void);
 extern void uart_print(char *pcStr);
 extern int  uart_getchar(void);
 extern void uart_init();
+extern void uart_write_bytes(const uint8_t *data, uint32_t len);
 
 #ifdef __cplusplus
 }

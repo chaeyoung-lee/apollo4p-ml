@@ -53,7 +53,7 @@
 #include "am_mcu_apollo.h"
 #include "am_bsp.h"
 #include "am_util.h"
-#include "./uart.h"
+#include "uart.h"
 
 
 //*****************************************************************************
@@ -202,6 +202,35 @@ uart_print(char *pcStr)
         //
         while(1);
     }
+}
+
+//*****************************************************************************
+//
+// UART write raw bytes (blocking)
+//
+//*****************************************************************************
+void uart_write_bytes(const uint8_t *data, uint32_t len)
+{
+    if (data == NULL || len == 0)
+    {
+        return;
+    }
+
+    uint32_t ui32BytesWritten = 0;
+
+    const am_hal_uart_transfer_t sUartWrite =
+    {
+        .eType = AM_HAL_UART_BLOCKING_WRITE,
+        .pui8Data = (uint8_t *) data,
+        .ui32NumBytes = len,
+        .pui32BytesTransferred = &ui32BytesWritten,
+        .ui32TimeoutMs = 100,
+        .pfnCallback = NULL,
+        .pvContext = NULL,
+        .ui32ErrorStatus = 0
+    };
+
+    CHECK_ERRORS(am_hal_uart_transfer(phUART, &sUartWrite));
 }
 
 void uart_init()
