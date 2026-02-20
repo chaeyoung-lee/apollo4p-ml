@@ -254,8 +254,8 @@ int main(void)
             continue;
         }
 #ifndef PROFILING
-        am_util_stdio_printf("Processed one image: label=%d, distance=%.4f\r\n",
-                             (int)label, (double)distance);
+        am_util_stdio_printf("Processed one image: IVF label=%d, distance=%.4f, TFLite label=%d\r\n",
+                             (int)label, (double)distance, tflite_label);
 #endif
     }
 
@@ -280,7 +280,7 @@ int main(void)
             uint64_t avg_get = total_embedding_get_cyc / n;
             am_util_stdio_printf("    preprocess: %llu cyc (%.2f ms)\r\n",
                                  (unsigned long long)avg_pre, (double)avg_pre / 96000.0);
-            am_util_stdio_printf("    invoke:     %llu cyc (%.2f ms)  <- TFLite forward pass (FP32 ref kernels)\r\n",
+            am_util_stdio_printf("    invoke:     %llu cyc (%.2f ms)\r\n",
                                  (unsigned long long)avg_inv, (double)avg_inv / 96000.0);
             am_util_stdio_printf("    get_emb:    %llu cyc (%.2f ms)\r\n",
                                  (unsigned long long)avg_get, (double)avg_get / 96000.0);

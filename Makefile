@@ -21,6 +21,9 @@ ifeq ($(PROFILING),1)
 DEFINES += PROFILING
 endif
 
+# Use CMSIS-NN optimized kernels for int8 Conv2D, DepthwiseConv2D, FullyConnected
+DEFINES += CMSIS_NN
+
 # Application name
 local_app_name := main
 TARGET := main

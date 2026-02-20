@@ -24,6 +24,6 @@ extern const char *kCategoryLabels[kCategoryCount];
 // Adjust based on your model's memory requirements
 // Apollo4 Plus: Allocated in SHARED_SRAM (1MB available)
 // Can use larger sizes since it's separate from TCM
-constexpr int kTensorArenaSize = 600 * 1024; // 600KB
+constexpr int kTensorArenaSize = 200 * 1024; // 200KB
 
 #endif // MODEL_SETTINGS_H_
