@@ -28,3 +28,4 @@ __pycache__
 .vscode
 *.tflite
 cifar-10-batches-py
+ivf/

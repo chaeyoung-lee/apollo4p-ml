@@ -107,6 +107,8 @@ void model_print_results(void);                          // Print results
 - ARM GCC toolchain
 - SEGGER J-Link
 
+I use compiled libraries from [this](https://github.com/AmbiqAI/MLPerfTiny) repository.
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
